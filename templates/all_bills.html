@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}All Bills - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-invoice me-2"></i>All Bills</h2>
+    <div class="d-flex gap-2">
+        <span class="badge bg-info">{{ batteries.total }} Bills</span>
+        <span class="badge bg-success">₹{{ "%.2f"|format(total_revenue) }} Total Revenue</span>
+        {% if current_status %}
+        <span class="badge bg-primary">{{ current_status }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filter Options -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if status == current_status %}selected{% endif %}>
+                        {{ status }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+            </div>
+            {% if current_status %}
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{{ url_for('main.all_bills') }}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-times me-1"></i>Clear
+                </a>
+            </div>
+            {% endif %}
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+                <div class="btn-group">
+                    <a href="{{ url_for('main.export_csv') }}" class="btn btn-success">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if batteries.items %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list me-2"></i>Bill Records</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Battery ID</th>
+                        <th>Customer</th>
+                        <th>Battery Details</th>
+                        <th>Status</th>
+                        <th>Service Price</th>
+                        <th>Pickup Charge</th>
+                        <th>Total Amount</th>
+                        <th>Bill Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for battery in batteries.items %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('main.bill', battery_id=battery.id) }}" class="text-decoration-none fw-bold">
+                                {{ battery.battery_id }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ battery.customer.name }}</strong><br>
+                            <small class="text-muted">{{ battery.customer.mobile }}</small>
+                        </td>
+                        <td>
+                            {{ battery.battery_type }}<br>
+                            <small class="text-muted">{{ battery.voltage }} / {{ battery.capacity }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'secondary' if battery.status == 'Received' else 'warning' if battery.status == 'Pending' else 'success' if battery.status == 'Ready' else 'primary' if battery.status == 'Delivered' else 'info' if battery.status == 'Returned' else 'danger' if battery.status == 'Not Repairable' else 'secondary' }}">
+                                {{ battery.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>₹{{ "%.2f"|format(battery.service_price) }}</strong>
+                        </td>
+                        <td>
+                            {% if battery.is_pickup and battery.pickup_charge > 0 %}
+                                ₹{{ "%.2f"|format(battery.pickup_charge) }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong class="text-success">
+                                ₹{{ "%.2f"|format(battery.service_price + (battery.pickup_charge if battery.is_pickup else 0)) }}
+                            </strong>
+                        </td>
+                        <td>{{ battery.inward_date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('main.bill', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-success" title="View Bill" target="_blank">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                <a href="{{ url_for('main.receipt', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-primary" title="Receipt" target="_blank">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+                                <button onclick="window.open('{{ url_for('main.bill', battery_id=battery.id) }}'); window.print();" 
+                                        class="btn btn-outline-secondary" title="Print Bill">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                                <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-info" title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="6" class="text-end"><strong>Page Total:</strong></td>
+                        <td><strong class="text-success">
+                            ₹{{ "%.2f"|format(batteries.items|sum(attribute='service_price') + batteries.items|selectattr('is_pickup')|sum(attribute='pickup_charge')) }}
+                        </strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if batteries.pages > 1 %}
+<nav aria-label="Bills pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if batteries.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.all_bills', page=batteries.prev_num, status=current_status) }}">Previous</a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in batteries.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+            {% if page_num %}
+                {% if page_num != batteries.page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.all_bills', page=page_num, status=current_status) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if batteries.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.all_bills', page=batteries.next_num, status=current_status) }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Bills Found</h4>
+    {% if current_status %}
+    <p class="text-muted">No bills found with status "{{ current_status }}".</p>
+    <a href="{{ url_for('main.all_bills') }}" class="btn btn-primary">View All Bills</a>
+    {% else %}
+    <p class="text-muted">Bills are generated when batteries have service charges.</p>
+    <a href="{{ url_for('main.battery_entry') }}" class="btn btn-primary">Register Battery</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

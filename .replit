@@ -1,0 +1,47 @@
+modules = ["web", "python-3.11", "bash"]
+run = "python app.py"
+
+[nix]
+channel = "stable-25_05"
+packages = ["cacert", "openssl", "postgresql"]
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["sh", "-c", "python app.py"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "install_flask_login"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "install_flask_login"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uv add flask-login"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

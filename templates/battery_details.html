@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Battery Details - {{ battery.battery_id }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-battery-half me-2"></i>Battery Details - {{ battery.battery_id }}</h4>
+            </div>
+            <div class="card-body">
+                <!-- Battery Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><strong>Battery Information:</strong></h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td width="40%">Battery ID:</td>
+                                <td><strong>{{ battery.battery_id }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Type:</td>
+                                <td>{{ battery.battery_type }}</td>
+                            </tr>
+                            <tr>
+                                <td>Voltage:</td>
+                                <td>{{ battery.voltage }}</td>
+                            </tr>
+                            <tr>
+                                <td>Capacity:</td>
+                                <td>{{ battery.capacity }}</td>
+                            </tr>
+                            <tr>
+                                <td>Status:</td>
+                                <td>
+                                    {% if battery.status == 'Received' %}
+                                        <span class="badge bg-secondary">{{ battery.status }}</span>
+                                    {% elif battery.status == 'Pending' %}
+                                        <span class="badge bg-warning">{{ battery.status }}</span>
+                                    {% elif battery.status == 'Ready' %}
+                                        <span class="badge bg-success">{{ battery.status }}</span>
+                                    {% elif battery.status == 'Delivered' %}
+                                        <span class="badge bg-primary">{{ battery.status }}</span>
+                                    {% elif battery.status == 'Returned' %}
+                                        <span class="badge bg-info">{{ battery.status }}</span>
+                                    {% elif battery.status == 'Not Repairable' %}
+                                        <span class="badge bg-danger">{{ battery.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ battery.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Inward Date:</td>
+                                <td>{{ battery.inward_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                            </tr>
+                            <tr>
+                                <td>Service Price:</td>
+                                <td>₹{{ "%.2f"|format(battery.service_price) }}</td>
+                            </tr>
+                            {% if battery.is_pickup %}
+                            <tr>
+                                <td>Pickup Charge:</td>
+                                <td>₹{{ "%.2f"|format(battery.pickup_charge) }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><strong>Customer Information:</strong></h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td width="40%">Name:</td>
+                                <td>{{ battery.customer.name }}</td>
+                            </tr>
+                            <tr>
+                                <td>Mobile:</td>
+                                <td>{{ battery.customer.mobile }}</td>
+                            </tr>
+                            {% if battery.customer.mobile_secondary %}
+                            <tr>
+                                <td>Secondary Mobile:</td>
+                                <td>{{ battery.customer.mobile_secondary }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                {% if current_user.role in ['shop_staff', 'admin'] and battery.status == 'Ready' %}
+                <div class="mb-4">
+                    <h6><strong>Delivery Actions:</strong></h6>
+                    <form method="POST" action="{{ url_for('main.mark_battery_delivered', battery_id=battery.id) }}" class="d-inline">
+                        <input type="hidden" name="delivery_type" value="delivered">
+                        <input type="text" name="comments" placeholder="Delivery comments (optional)" class="form-control mb-2" style="width: 300px; display: inline-block;">
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Mark this battery as delivered to customer?')">
+                            <i class="fas fa-truck me-1"></i>Mark as Delivered
+                        </button>
+                    </form>
+                    
+                    <form method="POST" action="{{ url_for('main.mark_battery_delivered', battery_id=battery.id) }}" class="d-inline">
+                        <input type="hidden" name="delivery_type" value="returned">
+                        <input type="text" name="comments" placeholder="Return reason" class="form-control mb-2" style="width: 300px; display: inline-block;">
+                        <button type="submit" class="btn btn-info btn-sm" onclick="return confirm('Mark this battery as returned to customer?')">
+                            <i class="fas fa-undo me-1"></i>Mark as Returned
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- Status History -->
+                <h6><strong>Status History:</strong></h6>
+                {% if battery.status_history %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Comments</th>
+                                <th>Updated By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for history in battery.status_history|reverse %}
+                            <tr>
+                                <td>{{ history.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ history.status }}</span>
+                                </td>
+                                <td>{{ history.comments or '-' }}</td>
+                                <td>{{ history.user.full_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No status history available.</p>
+                {% endif %}
+                
+                <!-- Staff Notes Section (Main Area) -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6><strong><i class="fas fa-sticky-note me-2"></i>Staff Notes</strong></h6>
+                        {% if current_user.role in ['shop_staff', 'admin'] %}
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                            <i class="fas fa-plus me-1"></i>Add Note
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    {% if notes %}
+                    <div class="row">
+                        {% for note in notes %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-start border-3
+                                {% if note.note_type == 'issue' %}border-danger
+                                {% elif note.note_type == 'resolved' %}border-success
+                                {% elif note.note_type == 'reminder' %}border-warning
+                                {% else %}border-primary{% endif %}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <small class="text-muted">
+                                            <strong>{{ note.user.full_name }}</strong>
+                                        </small>
+                                        <span class="badge 
+                                            {% if note.note_type == 'issue' %}bg-danger
+                                            {% elif note.note_type == 'resolved' %}bg-success
+                                            {% elif note.note_type == 'reminder' %}bg-warning
+                                            {% else %}bg-primary{% endif %}">
+                                            {{ note.note_type.title() }}
+                                        </span>
+                                    </div>
+                                    <p class="mb-2">{{ note.note }}</p>
+                                    <small class="text-muted">{{ format_time(note.created_at, '%d/%m/%Y %H:%M') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center p-4 bg-light rounded">
+                        <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No staff notes added yet</h6>
+                        {% if current_user.role in ['shop_staff', 'admin'] %}
+                        <p class="text-muted small mb-0">Click "Add Note" above to add the first note for this battery.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Staff Notes -->
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-sticky-note me-2"></i>Staff Notes</h6>
+            </div>
+            <div class="card-body">
+                {% if current_user.role in ['shop_staff', 'admin'] %}
+                <!-- Add New Note -->
+                <form method="POST" action="{{ url_for('main.add_staff_note', battery_id=battery.id) }}" class="mb-3">
+                    <div class="mb-2">
+                        <select name="note_type" class="form-select form-select-sm">
+                            <option value="followup">Follow-up</option>
+                            <option value="reminder">Reminder</option>
+                            <option value="issue">Issue</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <textarea name="note" class="form-control" rows="3" placeholder="Add a note..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>Add Note
+                    </button>
+                </form>
+                <hr>
+                {% endif %}
+
+                <!-- Display Notes -->
+                {% if notes %}
+                <div style="max-height: 400px; overflow-y: auto;">
+                    {% for note in notes %}
+                    <div class="card mb-2 border-start border-3 
+                        {% if note.note_type == 'issue' %}border-danger
+                        {% elif note.note_type == 'resolved' %}border-success
+                        {% elif note.note_type == 'reminder' %}border-warning
+                        {% else %}border-primary{% endif %}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <small class="text-muted">
+                                    <strong>{{ note.user.full_name }}</strong>
+                                </small>
+                                <span class="badge 
+                                    {% if note.note_type == 'issue' %}bg-danger
+                                    {% elif note.note_type == 'resolved' %}bg-success
+                                    {% elif note.note_type == 'reminder' %}bg-warning
+                                    {% else %}bg-primary{% endif %} badge-sm">
+                                    {{ note.note_type.title() }}
+                                </span>
+                            </div>
+                            <p class="mb-1 small">{{ note.note }}</p>
+                            <small class="text-muted">{{ format_time(note.created_at, '%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center p-3">
+                    <i class="fas fa-sticky-note fa-2x text-muted mb-2"></i>
+                    <p class="text-muted small mb-0">No notes added yet.</p>
+                    {% if current_user.role in ['shop_staff', 'admin'] %}
+                    <small class="text-muted">Add the first note above.</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-tools me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('main.receipt', battery_id=battery.id) }}" class="btn btn-secondary btn-sm mb-2 w-100">
+                    <i class="fas fa-receipt me-1"></i>View Receipt
+                </a>
+                {% if battery.status in ['Delivered', 'Returned'] %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Bill available in Delivered section</strong><br>
+                    <small>Bills can only be printed from the Delivered batteries page for completed orders.</small>
+                </div>
+                {% endif %}
+                <a href="{{ url_for('main.search') }}" class="btn btn-secondary btn-sm w-100">
+                    <i class="fas fa-search me-1"></i>Back to Search
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+{% if current_user.role in ['shop_staff', 'admin'] %}
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sticky-note me-2"></i>Add Staff Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.add_staff_note', battery_id=battery.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Note Type</label>
+                        <select name="note_type" class="form-select">
+                            <option value="followup">Follow-up</option>
+                            <option value="reminder">Reminder</option>
+                            <option value="issue">Issue</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="note" class="form-control" rows="4" placeholder="Enter your note here..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Note
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview</h2>
+        <div class="btn-group" role="group">
+            <span class="badge bg-info fs-6 me-2">{{ current_user.role.replace('_', ' ').title() }}</span>
+            {% if current_user.role in ['shop_staff', 'admin'] %}
+            <a href="{{ url_for('main.battery_entry') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>New Entry
+            </a>
+            <a href="{{ url_for('main.inventory_dashboard') }}" class="btn btn-success">
+                <i class="fas fa-boxes me-1"></i>Inventory
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            {% if current_user.role in ['shop_staff', 'admin'] %}
+            <a href="{{ url_for('main.all_batteries') }}" class="text-decoration-none">
+            {% else %}
+            <a href="{{ url_for('main.search') }}" class="text-decoration-none">
+            {% endif %}
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-battery-full display-4 text-primary mb-3"></i>
+                        <h3 class="display-4">{{ total_batteries }}</h3>
+                        <p class="text-muted mb-0">Total Batteries</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('main.technician_panel') }}" class="text-decoration-none">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock display-4 text-warning mb-3"></i>
+                        <h3 class="display-4 text-warning">{{ pending_batteries }}</h3>
+                        <p class="text-muted mb-0">Pending Repairs</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ url_for('main.finished_batteries') }}" class="text-decoration-none">
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle display-4 text-success mb-3"></i>
+                        <h3 class="display-4 text-success">{{ ready_batteries }}</h3>
+                        <p class="text-muted mb-0">Ready for Pickup</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            {% if current_user.role in ['shop_staff', 'admin'] %}
+            <a href="{{ url_for('main.delivered_batteries') }}" class="text-decoration-none">
+            {% else %}
+            <a href="{{ url_for('main.search') }}" class="text-decoration-none">
+            {% endif %}
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-truck display-4 text-info mb-3"></i>
+                        <h3 class="display-4 text-info">{{ completed_batteries }}</h3>
+                        <p class="text-muted mb-0">Completed</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Additional Stats Row -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            {% if current_user.role in ['shop_staff', 'admin'] %}
+            <a href="{{ url_for('main.not_repairable_batteries') }}" class="text-decoration-none">
+            {% else %}
+            <a href="{{ url_for('main.search') }}" class="text-decoration-none">
+            {% endif %}
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-times-circle display-4 text-danger mb-3"></i>
+                        <h3 class="display-4 text-danger">{{ not_repairable_batteries }}</h3>
+                        <p class="text-muted mb-0">Not Repairable</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-9 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Revenue Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="border-end h-100 d-flex flex-column justify-content-center">
+                                <h3 class="text-success">₹{{ "%.2f"|format(total_revenue) }}</h3>
+                                <p class="text-muted mb-0">Total Revenue</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="border-end h-100 d-flex flex-column justify-content-center">
+                                <h3 class="text-info">₹{{ "%.2f"|format(avg_service_price) }}</h3>
+                                <p class="text-muted mb-0">Average Service Price</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h-100 d-flex flex-column justify-content-center">
+                                <h3 class="text-primary">{{ completed_batteries }}</h3>
+                                <p class="text-muted mb-0">Revenue Generating</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if current_user.role in ['shop_staff', 'admin'] %}
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.battery_entry') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus me-2"></i>New Battery Entry
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.inventory_dashboard') }}" class="btn btn-success w-100">
+                                <i class="fas fa-boxes me-2"></i>Inventory Management
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.all_bills') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-file-invoice me-2"></i>All Bills & Revenue
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.export_csv') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-download me-2"></i>Export Data
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.technician_panel') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-tools me-2"></i>Technician Panel
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.search') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-search me-2"></i>Search Batteries
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                    <a href="{{ url_for('main.technician_panel') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_batteries %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Battery ID</th>
+                                        <th>Customer</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for battery in recent_batteries %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" class="text-decoration-none">
+                                                <strong class="text-primary">{{ battery.battery_id }}</strong>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {{ battery.customer.name }}<br>
+                                            <small class="text-muted">{{ battery.customer.mobile }}</small>
+                                        </td>
+                                        <td>
+                                            {% if battery.status == 'Received' %}
+                                                <span class="badge bg-secondary">{{ battery.status }}</span>
+                                            {% elif battery.status == 'Pending' %}
+                                                <span class="badge bg-warning">{{ battery.status }}</span>
+                                            {% elif battery.status == 'Ready' %}
+                                                <span class="badge bg-success">{{ battery.status }}</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ battery.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ format_time(battery.inward_date, '%d/%m %H:%M') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No recent battery activity.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Section -->
+    {% if current_user.role in ['shop_staff', 'admin'] %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Reports & Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('main.monthly_report') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-calendar-alt me-2"></i>Monthly Report
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('main.yearly_report') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-calendar me-2"></i>Yearly Report
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('main.all_batteries') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-battery-full me-2"></i>All Batteries
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('main.delivered_batteries') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-truck me-2"></i>Delivered Batteries
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

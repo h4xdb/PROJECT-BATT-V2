@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Add Inventory Item - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-plus me-2"></i>Add New Inventory Item</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="item_name" class="form-label">Item Name</label>
+                                <input type="text" class="form-control" id="item_name" name="item_name" required>
+                                <div class="form-text">e.g., Battery Acid, Lead Plates, Separators</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="item_code" class="form-label">Item Code</label>
+                                <input type="text" class="form-control" id="item_code" name="item_code" required>
+                                <div class="form-text">e.g., ACID-001, PLATE-002</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="acid">Battery Acid</option>
+                                    <option value="plates">Lead Plates</option>
+                                    <option value="separators">Separators</option>
+                                    <option value="terminals">Terminals</option>
+                                    <option value="cases">Battery Cases</option>
+                                    <option value="tools">Tools & Equipment</option>
+                                    <option value="other">Other Materials</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="unit" class="form-label">Unit of Measurement</label>
+                                <select class="form-select" id="unit" name="unit" required>
+                                    <option value="">Select Unit</option>
+                                    <option value="liters">Liters</option>
+                                    <option value="pieces">Pieces</option>
+                                    <option value="kg">Kilograms</option>
+                                    <option value="grams">Grams</option>
+                                    <option value="sets">Sets</option>
+                                    <option value="meters">Meters</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="current_stock" class="form-label">Initial Stock</label>
+                                <input type="number" class="form-control" id="current_stock" name="current_stock" min="0" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="minimum_stock" class="form-label">Minimum Stock Level</label>
+                                <input type="number" class="form-control" id="minimum_stock" name="minimum_stock" min="0" step="0.01" required>
+                                <div class="form-text">Alert when stock falls below this level</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="unit_cost" class="form-label">Unit Cost (₹)</label>
+                                <input type="number" class="form-control" id="unit_cost" name="unit_cost" min="0" step="0.01" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="supplier" class="form-label">Supplier (Optional)</label>
+                            <input type="text" class="form-control" id="supplier" name="supplier">
+                            <div class="form-text">Primary supplier for this item</div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('main.inventory_items') }}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Add Item
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-generate item code based on category and name
+document.getElementById('category').addEventListener('change', updateItemCode);
+document.getElementById('item_name').addEventListener('input', updateItemCode);
+
+function updateItemCode() {
+    const category = document.getElementById('category').value;
+    const itemName = document.getElementById('item_name').value;
+    
+    if (category && itemName) {
+        const categoryCode = category.toUpperCase().substring(0, 4);
+        const nameCode = itemName.toUpperCase().substring(0, 3).replace(/\s+/g, '');
+        const randomNum = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+        
+        document.getElementById('item_code').value = `${categoryCode}-${nameCode}${randomNum}`;
+    }
+}
+</script>
+{% endblock %}

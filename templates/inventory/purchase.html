@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Materials - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Purchase Materials</h4>
+                </div>
+                <div class="card-body">
+                    {% if items %}
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="item_id" class="form-label">Select Item</label>
+                            <select class="form-select" id="item_id" name="item_id" required onchange="updateItemDetails()">
+                                <option value="">Choose an item to purchase</option>
+                                {% for item in items %}
+                                <option value="{{ item.id }}" 
+                                        data-name="{{ item.item_name }}"
+                                        data-unit="{{ item.unit }}"
+                                        data-current-stock="{{ item.current_stock }}"
+                                        data-min-stock="{{ item.minimum_stock }}"
+                                        data-unit-cost="{{ item.unit_cost }}"
+                                        data-supplier="{{ item.supplier or 'Not specified' }}">
+                                    {{ item.item_name }} ({{ item.item_code }}) - Current: {{ item.current_stock }} {{ item.unit }}
+                                    {% if item.current_stock <= item.minimum_stock %} - LOW STOCK{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Item Details (Dynamic) -->
+                        <div id="item-details" class="alert alert-info d-none">
+                            <h6>Item Details:</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Current Stock:</strong> <span id="current-stock">-</span></p>
+                                    <p class="mb-1"><strong>Minimum Stock:</strong> <span id="min-stock">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Last Unit Cost:</strong> ₹<span id="last-unit-cost">-</span></p>
+                                    <p class="mb-1"><strong>Supplier:</strong> <span id="supplier">-</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="quantity" class="form-label">Quantity to Purchase</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required onchange="calculateTotal()">
+                                <div class="form-text">Enter quantity in <span id="unit-display">units</span></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="unit_cost" class="form-label">Unit Cost (₹)</label>
+                                <input type="number" class="form-control" id="unit_cost" name="unit_cost" min="0.01" step="0.01" required onchange="calculateTotal()">
+                                <div class="form-text">Cost per unit</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Total Cost</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="text" class="form-control" id="total-cost" readonly>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Purchase order number, supplier details, quality notes..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('main.inventory_items') }}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-shopping-cart me-1"></i>Record Purchase
+                            </button>
+                        </div>
+                    </form>
+
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box fa-3x text-muted mb-3"></i>
+                        <h5>No Inventory Items Available</h5>
+                        <p class="text-muted">You need to add inventory items before you can purchase materials.</p>
+                        <a href="{{ url_for('main.add_inventory_item') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Item
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateItemDetails() {
+    const select = document.getElementById('item_id');
+    const selectedOption = select.options[select.selectedIndex];
+    const detailsDiv = document.getElementById('item-details');
+    
+    if (selectedOption.value) {
+        // Show item details
+        document.getElementById('current-stock').textContent = selectedOption.dataset.currentStock + ' ' + selectedOption.dataset.unit;
+        document.getElementById('min-stock').textContent = selectedOption.dataset.minStock + ' ' + selectedOption.dataset.unit;
+        document.getElementById('last-unit-cost').textContent = parseFloat(selectedOption.dataset.unitCost).toFixed(2);
+        document.getElementById('supplier').textContent = selectedOption.dataset.supplier;
+        document.getElementById('unit-display').textContent = selectedOption.dataset.unit;
+        
+        // Pre-fill unit cost with last known cost
+        document.getElementById('unit_cost').value = selectedOption.dataset.unitCost;
+        
+        detailsDiv.classList.remove('d-none');
+        calculateTotal();
+    } else {
+        detailsDiv.classList.add('d-none');
+    }
+}
+
+function calculateTotal() {
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const unitCost = parseFloat(document.getElementById('unit_cost').value) || 0;
+    const total = quantity * unitCost;
+    
+    document.getElementById('total-cost').value = total.toFixed(2);
+}
+
+// Pre-select item if passed in URL
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemId = urlParams.get('item_id');
+    
+    if (itemId) {
+        const select = document.getElementById('item_id');
+        select.value = itemId;
+        updateItemDetails();
+    }
+});
+</script>
+{% endblock %}

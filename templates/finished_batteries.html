@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Finished Batteries - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-check-circle me-2"></i>Finished Batteries</h2>
+    <span class="badge bg-success">{{ batteries|length }} Completed</span>
+</div>
+
+{% if batteries %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Battery ID</th>
+                        <th>Customer</th>
+                        <th>Battery Details</th>
+                        <th>Received Date</th>
+                        <th>Service Price</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for battery in batteries %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" class="text-decoration-none">
+                                <strong class="text-success">{{ battery.battery_id }}</strong>
+                            </a>
+                        </td>
+                        <td>
+                            {{ battery.customer.name }}<br>
+                            <small class="text-muted">{{ battery.customer.mobile }}</small>
+                        </td>
+                        <td>
+                            {{ battery.battery_type }}<br>
+                            <small class="text-muted">{{ battery.voltage }} / {{ battery.capacity }}</small>
+                        </td>
+                        <td>{{ battery.inward_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if battery.service_price > 0 or battery.pickup_charge > 0 %}
+                                <div>
+                                    {% if battery.service_price > 0 %}
+                                        <div>Service: ₹{{ "%.2f"|format(battery.service_price) }}</div>
+                                    {% endif %}
+                                    {% if battery.pickup_charge > 0 %}
+                                        <div><small class="text-muted">Pickup: ₹{{ "%.2f"|format(battery.pickup_charge) }}</small></div>
+                                    {% endif %}
+                                    <div><strong>Total: ₹{{ "%.2f"|format(battery.service_price + battery.pickup_charge) }}</strong></div>
+                                </div>
+                            {% else %}
+                                <span class="text-warning">Price not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set note_count = battery.staff_notes|length %}
+                            {% if note_count > 0 %}
+                                <span class="badge bg-secondary me-2">{{ note_count }} notes</span>
+                            {% endif %}
+                            
+                            <!-- Quick Add Note Button -->
+                            {% if current_user.role in ['shop_staff', 'admin'] %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#noteModal{{ battery.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('main.receipt', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-receipt"></i> Receipt
+                                </a>
+                                <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-info">
+                                    <i class="fas fa-eye"></i> Details
+                                </a>
+                                {% if current_user.role in ['shop_staff', 'admin'] %}
+                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#deliverModal{{ battery.id }}">
+                                    <i class="fas fa-truck"></i> Deliver & Bill
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#warrantyModal{{ battery.id }}">
+                                    <i class="fas fa-undo"></i> Warranty
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- All Modals placed outside the table to prevent event conflicts -->
+{% if current_user.role in ['shop_staff', 'admin'] %}
+{% for battery in batteries %}
+
+<!-- Note Modal -->
+<div class="modal fade" id="noteModal{{ battery.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Note - {{ battery.battery_id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.add_quick_note', battery_id=battery.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="note" class="form-control" rows="3" placeholder="Enter note..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Warranty Modal -->
+<div class="modal fade" id="warrantyModal{{ battery.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reopen for Warranty - {{ battery.battery_id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.reopen_for_warranty', battery_id=battery.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        This will change the battery status back to "Pending" for warranty work.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Reason</label>
+                        <textarea name="warranty_reason" class="form-control" rows="3" placeholder="Describe the warranty issue..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Reopen for Warranty</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Deliver & Bill Modal -->
+<div class="modal fade" id="deliverModal{{ battery.id }}" tabindex="-1" aria-labelledby="deliverModalLabel{{ battery.id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deliverModalLabel{{ battery.id }}">
+                    <i class="fas fa-truck me-2"></i>Deliver & Generate Bill - {{ battery.battery_id }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.deliver_and_bill', battery_id=battery.id) }}" onsubmit="return confirm('Confirm delivery and bill generation?')">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This will mark the battery as delivered and automatically open the bill for printing.
+                    </div>
+                    
+                    <!-- Battery Details Summary -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Battery Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Customer:</strong> {{ battery.customer.name }}</p>
+                                    <p><strong>Mobile:</strong> {{ battery.customer.mobile }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Battery Type:</strong> {{ battery.battery_type }}</p>
+                                    <p><strong>Voltage/Capacity:</strong> {{ battery.voltage }} / {{ battery.capacity }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Billing Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Service Price:</span>
+                                        <strong>₹{{ "%.2f"|format(battery.service_price) if battery.service_price > 0 else "0.00" }}</strong>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Pickup Charge:</span>
+                                        <strong>₹{{ "%.2f"|format(battery.pickup_charge) if battery.pickup_charge > 0 else "0.00" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <h5>Total Amount:</h5>
+                                <h5 class="text-success">₹{{ "%.2f"|format((battery.service_price or 0) + (battery.pickup_charge or 0)) }}</h5>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Delivery Options -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><strong>Delivery Type</strong></label>
+                            <select name="delivery_type" class="form-select" required>
+                                <option value="delivered">Delivered to Customer</option>
+                                <option value="returned">Returned to Customer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label"><strong>Delivery Notes (Optional)</strong></label>
+                            <textarea name="comments" class="form-control" rows="2" placeholder="Any delivery notes or special instructions..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-truck me-1"></i>Deliver & Print Bill
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endfor %}
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6><i class="fas fa-info-circle me-2"></i>Quick Actions</h6>
+                <div class="d-grid gap-2">
+                    <button onclick="printAllBills()" class="btn btn-success btn-sm">
+                        <i class="fas fa-print me-1"></i>Print All Bills
+                    </button>
+                    <a href="{{ url_for('main.export_csv') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download me-1"></i>Export All Data
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6><i class="fas fa-chart-bar me-2"></i>Statistics</h6>
+                <p class="mb-1"><strong>Total Completed:</strong> {{ batteries|length }}</p>
+                <p class="mb-1"><strong>Total Revenue:</strong> ₹{{ "%.2f"|format(batteries|sum(attribute='service_price')) }}</p>
+                <p class="mb-0"><strong>Average Service Price:</strong> 
+                    {% if batteries|length > 0 %}
+                        ₹{{ "%.2f"|format((batteries|sum(attribute='service_price')) / (batteries|length)) }}
+                    {% else %}
+                        ₹0.00
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-battery-empty fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Finished Batteries</h4>
+    <p class="text-muted">Completed battery repairs will appear here.</p>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+        <i class="fas fa-home me-1"></i>Back to Dashboard
+    </a>
+</div>
+{% endif %}
+
+<!-- Bootstrap JS for modal functionality -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" onerror="this.onerror=null;this.remove();"></script>
+
+{% if open_bill_id %}
+<script>
+// Automatically open bill in new tab after delivery
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Opening bill for battery ID: {{ open_bill_id }}');
+    var billUrl = '{{ url_for("main.bill", battery_id=open_bill_id) }}';
+    console.log('Bill URL: ' + billUrl);
+    
+    // Try multiple methods to ensure bill opens
+    setTimeout(function() {
+        try {
+            var newWindow = window.open(billUrl, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                // Popup blocked, try alternative
+                console.log('Popup blocked, trying alternative method');
+                window.location.href = billUrl;
+            } else {
+                console.log('Bill opened successfully in new tab');
+            }
+        } catch (e) {
+            console.error('Error opening bill:', e);
+            // Fallback: navigate to bill in same tab
+            window.location.href = billUrl;
+        }
+    }, 1000);
+});
+</script>
+{% endif %}
+
+<script>
+// Prevent modal flickering and conflicts
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure proper modal initialization
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(function(modal) {
+        // Prevent multiple modals from showing simultaneously
+        modal.addEventListener('show.bs.modal', function (e) {
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(function(openModal) {
+                if (openModal !== modal) {
+                    const modalInstance = bootstrap.Modal.getInstance(openModal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                }
+            });
+        });
+
+        // Fix backdrop issues
+        modal.addEventListener('shown.bs.modal', function (e) {
+            document.body.style.paddingRight = '';
+        });
+    });
+});
+
+function printAllBills() {
+    const batteries = {{ batteries|tojson }};
+    batteries.forEach(function(battery) {
+        const billUrl = '/bill/' + battery.id;
+        window.open(billUrl, '_blank');
+    });
+}
+</script>
+
+{% endblock %}

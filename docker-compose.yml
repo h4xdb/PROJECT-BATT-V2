@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: battery_repair_db
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_secure_pass_2025
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d battery_repair_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://erp_user:erp_secure_pass_2025@postgres:5432/battery_repair_db
+      SESSION_SECRET: battery_erp_secret_key_hardcoded_2025_production
+      FLASK_ENV: production
+      OFFLINE_MODE: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./instance:/app/instance
+
+volumes:
+  postgres_data:

@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}All Batteries - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-battery-full me-2"></i>All Batteries</h2>
+    <div class="d-flex gap-2">
+        <span class="badge bg-info">{{ batteries.total }} Total</span>
+        {% if current_status %}
+        <span class="badge bg-primary">Filtered: {{ current_status }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filter Options -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if status == current_status %}selected{% endif %}>
+                        {{ status }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+            </div>
+            {% if current_status %}
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{{ url_for('main.all_batteries') }}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-times me-1"></i>Clear
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{% if batteries.items %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list me-2"></i>Battery Records</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Battery ID</th>
+                        <th>Customer</th>
+                        <th>Battery Details</th>
+                        <th>Status</th>
+                        <th>Inward Date</th>
+                        <th>Service Price</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for battery in batteries.items %}
+                    <tr>
+                        <td>
+                            {% if battery.status == 'Ready' %}
+                                <a href="{{ url_for('main.bill', battery_id=battery.id) }}" class="text-decoration-none fw-bold">
+                                    {{ battery.battery_id }}
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" class="text-decoration-none fw-bold">
+                                    {{ battery.battery_id }}
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ battery.customer.name }}</strong><br>
+                            <small class="text-muted">{{ battery.customer.mobile }}</small>
+                        </td>
+                        <td>
+                            {{ battery.battery_type }}<br>
+                            <small class="text-muted">{{ battery.voltage }} / {{ battery.capacity }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'secondary' if battery.status == 'Received' else 'warning' if battery.status == 'Pending' else 'success' if battery.status == 'Ready' else 'primary' if battery.status == 'Delivered' else 'info' if battery.status == 'Returned' else 'danger' if battery.status == 'Not Repairable' else 'secondary' }}">
+                                {{ battery.status }}
+                            </span>
+                        </td>
+                        <td>{{ battery.inward_date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {% if battery.service_price > 0 or battery.pickup_charge > 0 %}
+                                <div>
+                                    {% if battery.service_price > 0 %}
+                                        <div>Service: ₹{{ "%.2f"|format(battery.service_price) }}</div>
+                                    {% endif %}
+                                    {% if battery.pickup_charge > 0 %}
+                                        <div><small class="text-muted">Pickup: ₹{{ "%.2f"|format(battery.pickup_charge) }}</small></div>
+                                    {% endif %}
+                                    <div><strong>Total: ₹{{ "%.2f"|format(battery.service_price + battery.pickup_charge) }}</strong></div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('main.receipt', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-primary" title="Receipt">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+                                {% if battery.service_price > 0 or battery.pickup_charge > 0 %}
+                                <a href="{{ url_for('main.bill', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-success" title="Bill">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('main.battery_details', battery_id=battery.id) }}" 
+                                   class="btn btn-outline-info" title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if batteries.pages > 1 %}
+<nav aria-label="Battery pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if batteries.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.all_batteries', page=batteries.prev_num, status=current_status) }}">Previous</a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in batteries.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+            {% if page_num %}
+                {% if page_num != batteries.page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.all_batteries', page=page_num, status=current_status) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if batteries.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.all_batteries', page=batteries.next_num, status=current_status) }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Batteries Found</h4>
+    {% if current_status %}
+    <p class="text-muted">No batteries found with status "{{ current_status }}".</p>
+    <a href="{{ url_for('main.all_batteries') }}" class="btn btn-primary">View All Batteries</a>
+    {% else %}
+    <p class="text-muted">Start by registering your first battery.</p>
+    <a href="{{ url_for('main.battery_entry') }}" class="btn btn-primary">Register Battery</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

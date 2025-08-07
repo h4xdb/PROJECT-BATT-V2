@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Transactions - Battery Repair ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-history me-2"></i>Stock Transaction History</h2>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('main.inventory_dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-bar me-1"></i>Dashboard
+            </a>
+            <a href="{{ url_for('main.purchase_materials') }}" class="btn btn-success">
+                <i class="fas fa-shopping-cart me-1"></i>New Purchase
+            </a>
+        </div>
+    </div>
+
+    {% if transactions %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Type</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Unit Cost</th>
+                            <th>Total Cost</th>
+                            <th>Reference</th>
+                            <th>Created By</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <small class="text-muted">{{ format_time(transaction.created_at, '%d/%m/%Y') }}</small><br>
+                                    <strong>{{ format_time(transaction.created_at, '%H:%M:%S') }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                {% if transaction.transaction_type == 'purchase' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-shopping-cart me-1"></i>Purchase
+                                    </span>
+                                {% elif transaction.transaction_type == 'usage' %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-tools me-1"></i>Usage
+                                    </span>
+                                {% elif transaction.transaction_type == 'adjustment' %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-edit me-1"></i>Adjustment
+                                    </span>
+                                {% elif transaction.transaction_type == 'return' %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-undo me-1"></i>Return
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-dark">{{ transaction.transaction_type|title }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ transaction.inventory_item.item_name }}</strong><br>
+                                    <small class="text-muted">{{ transaction.inventory_item.item_code }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="{% if transaction.quantity < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {% if transaction.quantity > 0 %}+{% endif %}{{ transaction.quantity }} {{ transaction.inventory_item.unit }}
+                                </span>
+                            </td>
+                            <td>₹{{ "%.2f"|format(transaction.unit_cost) }}</td>
+                            <td>
+                                <strong class="{% if transaction.quantity < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    ₹{{ "%.2f"|format(transaction.total_cost) }}
+                                </strong>
+                            </td>
+                            <td>
+                                {% if transaction.reference_id %}
+                                    <code>{{ transaction.reference_id }}</code>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ transaction.user.full_name }}</strong><br>
+                                    <small class="text-muted">{{ transaction.user.role.replace('_', ' ').title() }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if transaction.notes %}
+                                    <div class="text-truncate" style="max-width: 200px;" title="{{ transaction.notes }}">
+                                        {{ transaction.notes }}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Summary -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x text-success mb-2"></i>
+                    <h5>Total Purchases</h5>
+                    <h3 class="text-success">
+                        ₹{{ "%.2f"|format(transactions|selectattr('transaction_type', 'equalto', 'purchase')|sum(attribute='total_cost')) }}
+                    </h3>
+                    <small class="text-muted">
+                        {{ transactions|selectattr('transaction_type', 'equalto', 'purchase')|list|length }} transactions
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-tools fa-2x text-warning mb-2"></i>
+                    <h5>Materials Used</h5>
+                    <h3 class="text-warning">
+                        ₹{{ "%.2f"|format(transactions|selectattr('transaction_type', 'equalto', 'usage')|sum(attribute='total_cost')) }}
+                    </h3>
+                    <small class="text-muted">
+                        {{ transactions|selectattr('transaction_type', 'equalto', 'usage')|list|length }} transactions
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                    <h5>Net Investment</h5>
+                    <h3 class="text-info">
+                        ₹{{ "%.2f"|format((transactions|selectattr('transaction_type', 'equalto', 'purchase')|sum(attribute='total_cost')) - (transactions|selectattr('transaction_type', 'equalto', 'usage')|sum(attribute='total_cost'))) }}
+                    </h3>
+                    <small class="text-muted">Current stock value</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <h4>No Transaction History</h4>
+            <p class="text-muted">No inventory transactions have been recorded yet. Start by purchasing some materials.</p>
+            <a href="{{ url_for('main.purchase_materials') }}" class="btn btn-success">
+                <i class="fas fa-shopping-cart me-1"></i>Make First Purchase
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
